@@ -1,0 +1,3 @@
+# Scheme Intepreter in Haskell
+
+To build an interpreter, you must take user inputed text, transform that text into tokens, parse into a syntax tree, and finally evaluate into a result. A lexer is required to turn the text into tokens, and a parser is required to turn these into a syntax tree. The library Parsec does both. A data structure LispVal is used to represent the syntax tree and also the result of evaluation.
