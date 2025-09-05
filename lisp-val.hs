@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 import Data.Text as T
 import qualified Data.Map as Map
 import Control.Monad.Except
