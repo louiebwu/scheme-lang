@@ -78,3 +78,18 @@ parseExpr = parseReserved
     <|> parseText
     <|> parseQuote
     <|> parseSExp
+
+-- Reader
+
+contents :: Parser a -> Parser a
+contents p = do
+    Tok.whiteSpace lexer
+    r <- p
+    eof
+    return r
+
+readExpr :: T.Text -> Either ParseError LispVal
+readExpr = parse (contents parseExpr) "<stdin>"
+
+readExprFile :: T.Text -> Either ParseError LispVal
+readExprFile = parse (contents parseList) "<file>"
