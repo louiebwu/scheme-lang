@@ -1,3 +1,8 @@
+module Parser (
+  readExpr,
+  readExprFile
+) where
+
 import LispVal
 import Text.Parsec
 import Text.Parsec.Text
