@@ -1,4 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
+module Eval (
+  evalFile,
+  runParseTest,
+  safeExec,
+  -- testing
+  runASTinEnv,
+  basicEnv,
+  fileToEvalForm,
+  lineToEvalForm
+) where
+
 import Prim ( primEnv, unop )
 import Parser ( readExpr, readExprFile )
 import LispVal
@@ -13,7 +26,7 @@ import Data.Semigroup ((<>))
 import Data.Map as Map ( fromList, insert, lookup, Map )
 import qualified Data.Text as T
 import Control.Monad.Reader ( MonadReader(local, ask), ReaderT(runReaderT) )
-import Control.Exception ( throw )
+import Control.Exception ( throw, try, fromException, SomeException )
 import Control.Monad.Trans.Resource (runResourceT)
 import Control.Monad.IO.Class (MonadIO)
 
@@ -34,8 +47,12 @@ readFn val          = throw $ TypeMismatch "read expects a string" val
 lineToEvalForm :: T.Text -> Eval LispVal
 lineToEvalForm input = either (throw . PError . show) eval $ readExpr input
 
-evalFile :: T.Text -> IO () -- Program File
-evalFile fileExpr = (runASTinEnv basicEnv $ fileToEvalForm fileExpr) >>= print
+evalFile :: T.Text -> IO ()
+evalFile fileExpr = do
+    result <- safeExec $ runASTinEnv basicEnv $ fileToEvalForm fileExpr
+    case result of
+        Left err  -> putStrLn $ "Error: " ++ err
+        Right val -> print val
 
 fileToEvalForm :: T.Text -> Eval LispVal
 fileToEvalForm input = either (throw . PError . show ) evalBody $ readExprFile input
@@ -153,3 +170,15 @@ case funVar of
     (Fun (IFunc internalFn))                -> internalFn xVal
     (Lambda (IFunc internalfn) boundenv)    -> local (const boundenv) $ internalfn xVal
     _                                       -> throw $ NotFunction funVar
+
+-- Error catching
+
+safeExec :: IO a -> IO (Either String a)
+safeExec m = do
+  result <- Control.Exception.try m
+  case result of
+    Left (eTop :: SomeException) ->
+      case fromException eTop of
+        Just (enclosed :: LispException) -> return $ Left (show enclosed)
+        Nothing                -> return $ Left (show eTop)
+    Right val -> return $ Right val
