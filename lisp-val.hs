@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Data.Text as T
 import qualified Data.Map as Map
-import Control.Monad.Except
 import Control.Monad.Reader
+import Data.Typeable (Typeable)
 
 data LispVal
     = Atom T.Text
