@@ -1,5 +1,27 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module Prim ( primEnv, unop )  where
+
+import LispVal
+    ( LispException(NumArgs, IOError, TypeMismatch, ExpectedList),
+      IFunc(IFunc),
+      LispVal(Atom, Fun, Number, String, Bool, Nil, List),
+      Eval )
+import Data.Text as T ( Text, concat, pack, unpack )
+import Data.Text.IO as TIO ( hGetContents )
+import System.Directory ( doesFileExist )
+import System.IO
+    ( withFile, IOMode(ReadMode) )
+import Control.Monad.Except ( foldM, MonadIO(liftIO) )
+import Control.Exception ( throw )
+
+type Prim = [(T.Text, LispVal)]
+type Unary = LispVal -> Eval LispVal
+type Binary = LispVal -> LispVal -> Eval LispVal
+
 mkF :: ([LispVal] -> Eval LispVal) -> LispVal
 mkF = Fun . IFunc
+
 primEnv :: Prim
 primEnv = [   ("+"      , mkF $ binopFold (numOp (+)) (Number 0) )
             , ("*"      , mkF $ binopFold (numOp (*)) (Number 1) )
@@ -18,16 +40,12 @@ primEnv = [   ("+"      , mkF $ binopFold (numOp (+)) (Number 0) )
             , ("bl-eq?" , mkF $ binop $ eqOp (==))
             , ("and"    , mkF $ binopFold (eqOp (&&)) (Bool True))
             , ("or"     , mkF $ binopFold (eqOp (||)) (Bool False))
-            , ("cons"   , mkF Prim.cons)
-            , ("cdr"    , mkF Prim.cdr)
-            , ("car"    , mkF Prim.car)
+            , ("cons"   , mkF cons)
+            , ("cdr"    , mkF cdr)
+            , ("car"    , mkF car)
             , ("file?"  , mkF $ unop fileExists)
             , ("slurp"  , mkF $ unop slurp)
 ]
-
-type Prim = [(T.Text, LispVal)]
-type Unary = LispVal -> Eval LispVal
-type Binary = LispVal -> LispVal -> Eval LispVal
 
 unop :: Unary -> [LispVal] -> Eval LispVal
 unop op [x] = op x
@@ -39,9 +57,9 @@ binop _ args    = throw $ NumArgs 2 args
 
 binopFold :: Binary -> LispVal -> [LispVal] -> Eval LispVal
 binopFold op farg args = case args of
-    [a,b]   -> op a b
-    (a:as)  -> foldM op farg args
-    []      -> throw $ NumArgs 2 args
+    []      -> throw $ NumArgs 2 args -- Or a more specific error
+    [_]     -> throw $ NumArgs 2 args -- Error on single argument
+    _       -> foldM op farg args     -- Fold on 2 or more
 
 fileExists :: LispVal -> Eval LispVal
 fileExists (Atom atom) = fileExists $ String atom
@@ -57,11 +75,7 @@ wFileSlurp fileName = withFile (T.unpack fileName) ReadMode go
     where go        = readTextFile fileName
 
 readTextFile :: T.Text -> Handle -> IO LispVal
-readTextFile fileName handle = do
-    exists <- hIsEOF handle
-    if exists
-    then (TIO.hGetContents handle) >>= (return . String)
-    else throw $ IOError $ T.concat [" file does not exits: ", fileName]
+readTextFile _ handle = String <$> TIO.hGetContents handle
 
 cons :: [LispVal] -> Eval LispVal
 cons [x,y@(List yList)] = return $ List $ x:yList
