@@ -21,7 +21,7 @@ repl = do
     case minput of
         Nothing     -> outputStrLn "Goodbye."
         Just input  -> liftIO (process input) >> repl
-        --Just input -> (liftIO $ processToAST input) >> repl
+        --Just input -> (liftIO $ processToAST input) >> repl -- for debugging
 
 process :: String -> IO ()
 process str = do
