@@ -13,6 +13,7 @@ import Data.Text as T
 import qualified Data.Map as Map
 import Control.Monad.Reader
 import Data.Typeable (Typeable)
+import Control.Exception (Exception)
 import Control.Monad.IO.Class (MonadIO)
 
 data LispVal
@@ -40,17 +41,17 @@ instance Show LispVal where
     show = T.unpack . showVal
 
 showVal :: LispVal -> T.Text
-    showVal val =
-        case val of
-            (Atom atom)     -> atom
-            (String str)    -> T.concat ["\"", str, "\""]
-            (Number num)    -> T.pack $ show num
-            (Bool True)     -> "#t"
-            (Bool False)    -> "#f"
-            Nil             -> "Nil"
-            (List contents) -> T.concat ["(", T.unwords $ showVal <$> contents, ")"]
-            (Fun _)         -> "(internal function)"
-            (Lambda _ _)    -> "(lambda function)"
+showVal val =
+    case val of
+        (Atom atom)     -> atom
+        (String str)    -> T.concat ["\"", str, "\""]
+        (Number num)    -> T.pack $ show num
+        (Bool True)     -> "#t"
+        (Bool False)    -> "#f"
+        Nil             -> "Nil"
+        (List contents) -> T.concat ["(", T.unwords $ showVal <$> contents, ")"]
+        (Fun _)         -> "(internal function)"
+        (Lambda _ _)    -> "(lambda function)"
         
 data LispException
     = NumArgs Integer [LispVal]
@@ -61,9 +62,11 @@ data LispException
     | NotFunction LispVal
     | UnboundVar T.Text
     | Default LispVal
-    | PError String -- from show anyway
+    | PError String 
     | IOError T.Text
     deriving (Typeable)
+
+instance Exception LispException
 
 instance Show LispException where
     show = T.unpack . showError
