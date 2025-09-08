@@ -27,15 +27,12 @@ import Options.Applicative
 -- https://github.com/pcapriotti/optparse-applicative
 -- https://hackage.haskell.org/package/optparse-applicative
 
-
 runScript ::  FilePath -> IO ()
 runScript fname = do
   exists <- doesFileExist fname
   if exists
-    then do
-      fileContents <- TIO.readFile fname
-      evalFile fileContents
-    else TIO.putStrLn "File does not exist."
+  then TIO.readFile fname >>= evalFile fname
+  else TIO.putStrLn "File does not exist."
     
 data LineOpts = UseReplLineOpts | RunScriptLineOpts String
 
