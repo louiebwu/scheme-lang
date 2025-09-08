@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Parser (
   readExpr,
   readExprFile
@@ -44,7 +45,7 @@ parseAtom = Atom . T.pack <$> m_identifier
 parseText :: Parser LispVal
 parseText = do
     m_reservedOp "\""
-    p <- many $ noneOf "\""
+    p <- many1 $ noneOf "\""
     m_reservedOp "\""
     return $ String . T.pack $ p
 
