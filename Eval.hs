@@ -5,6 +5,7 @@ module Eval (
   evalFile,
   runParseTest,
   safeExec,
+  evalText,
   -- testing
   runASTinEnv,
   basicEnv,
@@ -21,7 +22,9 @@ import LispVal
       LispVal(..),
       Eval(unEval),
       EnvCtx )
-
+import Text.Parsec ( ParseError )
+import System.Directory ( doesFileExist )
+import qualified Data.Text.IO as TIO
 import Data.Semigroup ((<>))
 import Data.Map as Map ( fromList, insert, lookup, Map )
 import qualified Data.Text as T
@@ -144,6 +147,26 @@ eval (List [Atom "lambda", List params, expr]) = do
     return $ Lambda (IFunc $ applyLambda expr params) envLocal
 eval (List (Atom "lambda":_) ) = throw $ BadSpecialForm "lambda"
 
+-- Special Forms
+
+eval all@(List [Atom "cdr", List [Atom "quote", List (x:xs)]]) =
+    return $  List xs
+eval all@(List [Atom "cdr", arg@(List (x:xs))]) =  
+    case x of
+        Atom  _ -> do 
+            val <- eval arg 
+            eval $ List [Atom "cdr", val]
+        _       -> return $ List xs
+
+eval all@(List [Atom "car", List [Atom "quote", List (x:xs)]]) =
+    return $  x
+eval all@(List [Atom "car", arg@(List (x:xs))]) =  
+    case x of
+        Atom _  -> do 
+            val <- eval arg 
+            eval $ List [Atom "car", val]
+        _       -> return $ x
+
 -- Application
 
 eval (List ((:) x xs)) = do
@@ -176,3 +199,32 @@ safeExec m = do
         Just (enclosed :: LispException) -> return $ Left (show enclosed)
         Nothing                -> return $ Left (show eTop)
     Right val -> return $ Right val
+
+-- Standard Library
+
+sTDLIB :: T.Text
+sTDLIB = "lib/stdlib.scm"
+
+endOfList :: LispVal -> LispVal -> LispVal
+endOfList (List x) expr = List $ x ++ [expr]
+endOfList n _  = throw $ TypeMismatch  "failure to get variable: " n
+
+parseWithLib :: T.Text -> T.Text -> Either ParseError LispVal
+parseWithLib std inp = do
+    stdlib <- readExprFile std
+    expr   <- readExpr inp
+    return $ endOfList stdlib expr
+
+getFileContents :: FilePath -> IO T.Text
+getFileContents fname = do
+    exists <- doesFileExist fname
+    if exists then TIO.readFile  fname else return "File does not exist."
+
+textToEvalForm :: T.Text -> T.Text -> Eval LispVal
+textToEvalForm std input = either (throw . PError . show )  evalBody $ parseWithLib std input
+
+evalText :: T.Text -> IO () --REPL
+evalText textExpr = do
+  stdlib    <- getFileContents $ T.unpack sTDLIB
+  res       <- safeExec $ runASTinEnv basicEnv $ textToEvalForm stdlib textExpr
+  either putStrLn print res
