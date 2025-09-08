@@ -225,6 +225,6 @@ textToEvalForm std input = either (throw . PError . show )  evalBody $ parseWith
 
 evalText :: T.Text -> IO () --REPL
 evalText textExpr = do
-  stdlib    <- getFileContents $ T.unpack sTDLIB
-  res       <- safeExec $ runASTinEnv basicEnv $ textToEvalForm stdlib textExpr
-  either putStrLn print res
+    stdlib    <- getFileContents $ T.unpack sTDLIB
+    res       <- safeExec $ runASTinEnv basicEnv $ textToEvalForm stdlib textExpr
+    either putStrLn print res
