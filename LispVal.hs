@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module LispVal (
     LispVal(..),
@@ -24,11 +25,15 @@ data LispVal
     | Fun IFunc
     | Lambda IFunc EnvCtx
     | Nil
-    | Bool Bool deriving (Typeable)
+    | Bool Bool deriving (Typeable, Eq)
 
-data IFunc = IFunc { fn :: [LispVal] -> Eval LispVal }
+type ValCtx = Map.Map T.Text LispVal
+type FnCtx  = Map.Map T.Text LispVal
 
-type EnvCtx = Map.Map T.Text LispVal
+data EnvCtx = EnvCtx
+    { env :: ValCtx
+    , fenv :: FnCtx
+    } deriving (Eq)
 
 newtype Eval a = Eval { unEval :: ReaderT EnvCtx IO a }
     deriving ( Monad
@@ -39,6 +44,11 @@ newtype Eval a = Eval { unEval :: ReaderT EnvCtx IO a }
 
 instance Show LispVal where
     show = T.unpack . showVal
+
+data IFunc = IFunc { fn :: [LispVal] -> Eval LispVal }
+
+instance Eq IFunc where
+ (==) _ _ = False
 
 showVal :: LispVal -> T.Text
 showVal val =

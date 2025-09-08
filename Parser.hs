@@ -54,7 +54,7 @@ parseNumber = Number . read <$> many1 digit
 
 parseNegNum :: Parser LispVal
 parseNegNum = do
-    char '-'
+    _ <- char '-'
     d <- many1 digit
     return $ Number . negate . read $ d
 

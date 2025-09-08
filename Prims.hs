@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Prims ( primEnv, unop )  where
+module Prims ( primEnv, unop ) where
 
 import LispVal
     ( LispException(NumArgs, IOError, TypeMismatch, ExpectedList),
