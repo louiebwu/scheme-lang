@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Prim ( primEnv, unop )  where
+module Prims ( primEnv, unop )  where
 
 import LispVal
     ( LispException(NumArgs, IOError, TypeMismatch, ExpectedList),
@@ -8,10 +8,10 @@ import LispVal
       LispVal(Atom, Fun, Number, String, Bool, Nil, List),
       Eval )
 import Data.Text as T ( Text, concat, pack, unpack )
-import Data.Text.IO as TIO ( hGetContents )
+import Data.Text.IO as TIO ( hGetContents, hPutStr )
 import System.Directory ( doesFileExist )
 import System.IO
-    ( withFile, IOMode(ReadMode) )
+    ( withFile, IOMode(ReadMode), Handle, hIsWritable, IOMode(WriteMode) )
 import Control.Monad.Except ( foldM, MonadIO(liftIO) )
 import Control.Exception ( throw )
 
@@ -45,7 +45,7 @@ primEnv = [   ("+"      , mkF $ binopFold (numOp (+)) (Number 0) )
             , ("car"    , mkF car)
             , ("file?"  , mkF $ unop fileExists)
             , ("slurp"  , mkF $ unop slurp)
-]
+            , ("put"    , mkF $ binop put)]   
 
 unop :: Unary -> [LispVal] -> Eval LispVal
 unop op [x] = op x
@@ -66,16 +66,42 @@ fileExists (Atom atom) = fileExists $ String atom
 fileExists (String txt) = Bool <$> liftIO (doesFileExist $ T.unpack txt)
 fileExists val = throw $ TypeMismatch "expects str, got: " val
 
-slurp :: LispVal -> Eval LispVal
-slurp (String txt)  = liftIO $ wFileSlurp txt
-slurp val           = throw $ TypeMismatch "expects str, got:" val
+-- input
+
+slurp :: LispVal  -> Eval LispVal
+slurp (String txt) = liftIO $ wFileSlurp txt
+slurp val          =  throw $ TypeMismatch "read expects string, instead got: " val
 
 wFileSlurp :: T.Text -> IO LispVal
 wFileSlurp fileName = withFile (T.unpack fileName) ReadMode go
     where go        = readTextFile fileName
 
 readTextFile :: T.Text -> Handle -> IO LispVal
-readTextFile _ handle = String <$> TIO.hGetContents handle
+readTextFile fileName handle = do
+    exists <- doesFileExist $ T.unpack fileName
+    if exists
+    then (TIO.hGetContents handle) >>= (return . String)
+    else throw $ IOError $ T.concat [" file does not exits: ", fileName]
+
+-- output
+
+put :: LispVal -> LispVal -> Eval LispVal
+put (String file) (String msg) =  liftIO $ wFilePut file msg
+put (String _)  val = throw $ TypeMismatch "put expects string in the second argument (try using show), instead got: " val
+put val  _ = throw $ TypeMismatch "put expects string, instead got: " val
+
+wFilePut :: T.Text -> T.Text -> IO LispVal
+wFilePut fileName msg = withFile (T.unpack fileName) WriteMode go
+  where go = putTextFile fileName msg
+
+putTextFile :: T.Text -> T.Text -> Handle -> IO LispVal
+putTextFile fileName msg handle = do
+  canWrite <- hIsWritable handle
+  if canWrite
+  then (TIO.hPutStr handle msg) >> (return $ String msg)
+  else throw $ IOError $ T.concat ["permission denied: could not write to file ", fileName]  
+
+-- lists
 
 cons :: [LispVal] -> Eval LispVal
 cons [x,y@(List yList)] = return $ List $ x:yList
