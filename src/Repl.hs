@@ -4,10 +4,8 @@ module Repl (
   mainLoop,
 ) where
 
-import Eval ( safeExec, evalText )
---import Eval ( runParseTest )
+import Eval ( safeExec, evalText, runParseTest )
 import Data.Text as T ( pack )
-
 import Control.Monad.Trans ( MonadIO(liftIO) )
 import System.Console.Haskeline
     ( defaultSettings, getInputLine, outputStrLn, runInputT, InputT )
@@ -19,16 +17,16 @@ mainLoop = runInputT defaultSettings repl
 
 repl :: Repl ()
 repl = do
-  minput <- getInputLine "Repl> "
-  case minput of
-    Nothing -> outputStrLn "Goodbye."
-    Just input -> liftIO (process input) >> repl
-    --Just input -> (liftIO $ processToAST input) >> repl
+    minput <- getInputLine "Repl> "
+    case minput of
+        Nothing     -> outputStrLn "Goodbye."
+        Just input  -> liftIO (process input) >> repl
+        --Just input -> (liftIO $ processToAST input) >> repl -- for debugging
 
 process :: String -> IO ()
 process str = do
-  res <- safeExec $ evalText $ T.pack str
-  either putStrLn return res
+    res <- safeExec $ evalText $ T.pack str
+    either putStrLn print res
 
---processToAST :: String -> IO ()
---processToAST str = print $ runParseTest $ T.pack str
+processToAST :: String -> IO ()
+processToAST str = print $ runParseTest $ T.pack str
