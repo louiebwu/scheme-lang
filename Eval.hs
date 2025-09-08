@@ -93,7 +93,7 @@ applyLambda expr params args = do
 eval :: LispVal -> Eval LispVal
 
 -- Quote, Auto-quote
-
+eval (List [Atom "quote", val]) = return val
 eval (Number i) = return $ Number i
 eval (String s) = return $ String s
 eval (Bool b)   = return $ Bool b
@@ -127,6 +127,7 @@ eval (List [Atom "let", List pairs, expr]) = do
     let env' = Map.fromList (Prelude.zipWith (\a b -> (extractVar a, b)) atoms vals) <> env in local (const env') $ evalBody expr
 
 -- Begin, Define
+
 eval (List [Atom "begin", rest]) = evalBody rest
 eval (List ((:) (Atom "begin") rest )) = evalBody $ List rest
 
